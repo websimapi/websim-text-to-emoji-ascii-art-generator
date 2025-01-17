@@ -158,7 +158,7 @@ const FONT = {
   ]
 };
 
-// Color to emoji mapping
+// Enhanced color to emoji mapping with more accurate colors
 const COLOR_EMOJIS = {
   red: '❤️',
   orange: '🧡',
@@ -169,6 +169,9 @@ const COLOR_EMOJIS = {
   brown: '🤎',
   black: '🖤',
   white: '🤍',
+  pink: '🎀',
+  teal: '🔷',
+  gray: '⬜️'
 };
 
 function generateAsciiArt(text, foreground = '☀️', background = '🌊') {
@@ -204,27 +207,42 @@ function rgbToHex(r, g, b) {
   }).join('');
 }
 
-function findClosestColorEmoji(r, g, b) {
+function findClosestColorEmoji(r, g, b, a) {
+  // Skip fully transparent pixels
+  if (a === 0) return ' ';
+
+  // Enhanced color reference points for better matching
   const colors = {
     red: [255, 0, 0],
     orange: [255, 165, 0],
     yellow: [255, 255, 0],
-    green: [0, 255, 0],
+    green: [0, 128, 0],
     blue: [0, 0, 255],
     purple: [128, 0, 128],
-    brown: [165, 42, 42],
+    brown: [139, 69, 19],
     black: [0, 0, 0],
     white: [255, 255, 255],
+    pink: [255, 192, 203],
+    teal: [0, 128, 128],
+    gray: [128, 128, 128]
   };
 
+  // Calculate color distances using a weighted approach
   let minDistance = Infinity;
   let closestColor = 'black';
 
+  // Weighted components for human perception
+  const weights = {
+    r: 0.299,
+    g: 0.587,
+    b: 0.114
+  };
+
   for (const [color, [r2, g2, b2]] of Object.entries(colors)) {
     const distance = Math.sqrt(
-      Math.pow(r - r2, 2) + 
-      Math.pow(g - g2, 2) + 
-      Math.pow(b - b2, 2)
+      weights.r * Math.pow(r - r2, 2) + 
+      weights.g * Math.pow(g - g2, 2) + 
+      weights.b * Math.pow(b - b2, 2)
     );
     
     if (distance < minDistance) {
@@ -241,21 +259,24 @@ function convertImageToEmojis(imageElement, maxWidth, maxHeight) {
   const ctx = canvas.getContext('2d');
 
   // Calculate new dimensions maintaining aspect ratio
-  let newWidth = imageElement.width;
-  let newHeight = imageElement.height;
-  
-  if (newWidth > maxWidth) {
-    newHeight = (maxWidth / newWidth) * newHeight;
-    newWidth = maxWidth;
-  }
+  const aspectRatio = imageElement.width / imageElement.height;
+  let newWidth = maxWidth;
+  let newHeight = maxWidth / aspectRatio;
+
   if (newHeight > maxHeight) {
-    newWidth = (maxHeight / newHeight) * newWidth;
     newHeight = maxHeight;
+    newWidth = maxHeight * aspectRatio;
   }
 
   canvas.width = Math.floor(newWidth);
   canvas.height = Math.floor(newHeight);
   
+  // Use better image smoothing
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  
+  // Clear canvas and draw image
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
   
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -263,14 +284,16 @@ function convertImageToEmojis(imageElement, maxWidth, maxHeight) {
   
   let result = '';
   
+  // Process pixels with proper orientation
   for (let y = 0; y < canvas.height; y++) {
     for (let x = 0; x < canvas.width; x++) {
       const i = (y * canvas.width + x) * 4;
       const r = pixels[i];
       const g = pixels[i + 1];
       const b = pixels[i + 2];
+      const a = pixels[i + 3];
       
-      result += findClosestColorEmoji(r, g, b);
+      result += findClosestColorEmoji(r, g, b, a);
     }
     result += '\n';
   }
@@ -324,9 +347,26 @@ imageUpload.addEventListener('change', (e) => {
       img.onload = () => {
         preview.style.display = 'block';
         const ctx = preview.getContext('2d');
-        preview.width = img.width;
-        preview.height = img.height;
-        ctx.drawImage(img, 0, 0);
+        
+        // Maintain aspect ratio for preview
+        const maxPreviewWidth = 300;
+        const maxPreviewHeight = 300;
+        let previewWidth = img.width;
+        let previewHeight = img.height;
+        
+        if (previewWidth > maxPreviewWidth) {
+          previewHeight = (maxPreviewWidth / previewWidth) * previewHeight;
+          previewWidth = maxPreviewWidth;
+        }
+        if (previewHeight > maxPreviewHeight) {
+          previewWidth = (maxPreviewHeight / previewHeight) * previewWidth;
+          previewHeight = maxPreviewHeight;
+        }
+        
+        preview.width = previewWidth;
+        preview.height = previewHeight;
+        ctx.clearRect(0, 0, preview.width, preview.height);
+        ctx.drawImage(img, 0, 0, preview.width, preview.height);
       };
       img.src = event.target.result;
     };
