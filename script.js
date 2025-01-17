@@ -239,7 +239,7 @@ const FONT = {
 function generateAsciiArt(text, foreground = '☀️', background = '🌊') {
   text = text.toUpperCase();
   const lines = [];
-  const height = 7;
+  const height = 3;
   
   // Initialize empty lines
   for (let i = 0; i < height; i++) {
@@ -252,13 +252,9 @@ function generateAsciiArt(text, foreground = '☀️', background = '🌊') {
       const pattern = FONT[char];
       
       // Add character pattern to each line
-      for (let i = 0; i < height; i++) {
-        pattern[i].forEach(pixel => {
-          lines[i].push(pixel ? foreground : background);
-        });
-        // Add space between letters
-        lines[i].push(background);
-      }
+      lines[0].push(...pattern[0].map(pixel => pixel ? foreground : background), background);
+      lines[1].push(...pattern[3].map(pixel => pixel ? foreground : background), background);
+      lines[2].push(...pattern[6].map(pixel => pixel ? foreground : background), background);
     }
   }
   
